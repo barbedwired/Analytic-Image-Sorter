@@ -2,6 +2,7 @@
 
 
 [![Live Demo](https://img.shields.io/badge/demo-online-emerald.svg)](https://barbedwired.github.io/Analytic-Image-Sorter/)
+アイコンクリックででもページに飛びます。
 
 ブラッドリー・テリーモデルとベイズ的推論を基盤とした、高精度な多択式画像ソートエンジンです。ユーザーの主観的な好みを統計的に処理し、最適なランキングを導き出します。
 
