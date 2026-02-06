@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>画像ソート Lv.36 (Stat Analytics)</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#effdf9', 100: '#d6f6ee', 200: '#b1ebd9', 300: '#82dbc0', 400: '#52c2a3', 500: '#579c8e', 600: '#298c73', 700: '#25705d', 800: '#22594c', 900: '#204a40' },
+            secondary: { 50: '#f6f6f6', 100: '#e7e7e7', 200: '#cfcfcf', 300: '#b0b0b0', 400: '#888888', 500: '#545454', 600: '#454545', 700: '#383838', 800: '#2e2e2e', 900: '#262626' }
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s forwards',
+            'pop': 'pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+            'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            pop: { '0%': { transform: 'scale(0.9)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+            shake: {
+              '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+              '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+              '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+              '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: "Roboto", system-ui, sans-serif;
+    }
+
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+
+    body,
+    div,
+    p,
+    h1,
+    h2,
+    h3,
+    span,
+    button {
+      transition-property: background-color, border-color, color, fill, stroke, grid-template-columns, opacity, transform, width;
+      transition-duration: 300ms;
+    }
+
+    .bg-grid-pattern {
+      background-size: 40px 40px;
+      background-image: linear-gradient(to right, #cbd5e1 1px, transparent 1px), linear-gradient(to bottom, #cbd5e1 1px, transparent 1px);
+    }
+
+    .dark .bg-grid-pattern {
+      background-image: linear-gradient(to right, #475569 1px, transparent 1px), linear-gradient(to bottom, #475569 1px, transparent 1px);
+    }
+
+    .shutter-stripes {
+      background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 20px, rgba(255, 255, 255, 0.15) 20px, rgba(255, 255, 255, 0.15) 40px);
+    }
+
+    #shutter-layer {
+      transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+
+    /* これを追加 */
+    .gradient-bar-purple {
+      background: linear-gradient(90deg, #a855f7 0%, #ec4899 100%);
+    }
+
+    .gradient-bar-blue {
+      background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+    }
+
+    .gradient-bar-emerald {
+      background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);
+    }
+
+    .gradient-bar-slate {
+      background: linear-gradient(90deg, #64748b 0%, #475569 100%);
+    }
+
+    .gradient-bar-gray {
+      background: linear-gradient(90deg, #4b5563 0%, #374151 100%);
+    }
+  </style>
+</head>
+
+<body
+  class="bg-slate-50 text-secondary-800 antialiased min-h-screen p-4 md:p-6 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 relative overflow-x-hidden">
+
+  <div
+    class="fixed inset-0 z-0 pointer-events-none bg-grid-pattern [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_100%)] opacity-80">
+  </div>
+  <div id="shutter-layer"
+    class="fixed inset-0 z-[100] bg-primary-600 shutter-stripes transform -translate-x-full pointer-events-none flex items-center justify-center shadow-2xl">
+  </div>
+
+  <div class="relative z-10">
+    <div class="fixed top-4 right-4 z-50 flex gap-3">
+      <button id="mute-toggle" onclick="toggleMute()"
+        class="p-3 rounded-full bg-white text-secondary-500 shadow-lg hover:bg-slate-100 dark:bg-slate-800 dark:text-secondary-300 dark:hover:bg-slate-700 transition-all transform hover:scale-110 border border-slate-200 dark:border-slate-700">
+        <svg id="sound-on-icon" class="w-6 h-6 block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z">
+          </path>
+        </svg>
+        <svg id="sound-off-icon" class="w-6 h-6 hidden text-red-400" fill="none" stroke="currentColor"
+          viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+        </svg>
+      </button>
+      <button id="theme-toggle" onclick="toggleTheme()"
+        class="p-3 rounded-full bg-white text-secondary-500 shadow-lg hover:bg-slate-100 dark:bg-slate-800 dark:text-yellow-400 dark:hover:bg-slate-700 transition-all transform hover:scale-110 border border-slate-200 dark:border-slate-700">
+        <svg id="sun-icon" class="w-6 h-6 block dark:hidden text-orange-400" fill="none" stroke="currentColor"
+          viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+          </path>
+        </svg>
+        <svg id="moon-icon" class="w-6 h-6 hidden dark:block text-yellow-300" fill="none" stroke="currentColor"
+          viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="upload-area" class="transition-all duration-300">
+      <div
+        class="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8 border border-slate-200 dark:border-slate-700">
+        <h1 class="text-2xl font-bold text-secondary-900 dark:text-white mb-2 text-center tracking-wide">Image Sort
+          <span class="text-primary-500">Lv.36</span>
+        </h1>
+        <p class="text-secondary-500 dark:text-slate-400 text-sm mb-6 text-center">統計的に好きな画像を推定</p>
+
+        <div id="drop-zone"
+          class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700/50 p-10 text-center cursor-pointer transition-all duration-200 hover:border-primary-500 dark:hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:shadow-md group mb-6 relative">
+          <input type="file" id="file-input" multiple accept="image/*" class="hidden">
+          <span
+            class="text-secondary-400 dark:text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-400 font-medium">
+            画像をタップまたはドロップして追加<br>
+            <span class="text-xs opacity-70">枚数が多いほど選別効果が高まります</span>
+          </span>
+          <div id="file-list" class="mt-2 text-xs text-secondary-400 dark:text-slate-500">画像数: 0</div>
+        </div>
+
+        <div
+          class="bg-slate-100 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700 min-h-[120px] shadow-inner">
+          <p id="empty-msg" class="text-center text-sm text-secondary-400 dark:text-slate-500 py-8 pointer-events-none">
+            画像がありません</p>
+          <div id="thumb-list" class="flex flex-wrap gap-3 justify-center"></div>
+        </div>
+
+        <div class="mt-8 mb-4 text-center">
+          <button id="start-btn" onclick="startBattle()" disabled
+            class="px-12 py-4 bg-primary-500 hover:bg-primary-600 text-white text-lg font-bold rounded-full shadow-lg hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 active:shadow-md disabled:bg-slate-300 dark:disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed transition-all duration-200">
+            測定開始 <span class="text-xs ml-1 opacity-70 font-normal">(Enter)</span>
+          </button>
+        </div>
+        <div class="text-right">
+          <button id="clear-all-btn" onclick="clearAllImages()" disabled
+            class="text-xs text-slate-400 dark:text-slate-500 hover:text-red-500 underline decoration-transparent hover:decoration-red-500 transition-all disabled:opacity-0">全削除</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="battle-area" class="hidden w-full max-w-[95vw] mx-auto text-center py-4">
+      <div class="flex flex-col items-center mb-2">
+        <h2 class="text-2xl font-bold text-secondary-800 dark:text-slate-100">一番好きなのは？</h2>
+
+        <div class="flex gap-2 mt-2">
+          <div id="phase-indicator"
+            class="text-xs font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors duration-500">
+            Init
+          </div>
+          <div id="stats-indicator"
+            class="text-xs font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700">
+            Active: 0
+          </div>
+        </div>
+        <div id="streak-warning" class="hidden text-xs text-red-400 mt-1 font-bold animate-pulse">
+          ⚠️ 選択停滞中: 次もパスで強制終了します
+        </div>
+      </div>
+
+      <div class="w-full max-w-lg mx-auto mt-2 mb-6">
+        <div class="flex justify-between text-[10px] text-secondary-400 dark:text-slate-500 mb-1 px-1">
+          <span>分析進捗 (不確実性の減少)</span>
+          <span id="progress-text">0%</span>
+        </div>
+        <div class="bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden shadow-inner">
+          <div id="progress-bar"
+            class="bg-gradient-to-r from-blue-400 to-primary-500 h-full rounded-full transition-all ease-out shadow-[0_0_8px_rgba(87,156,142,0.4)]"
+            style="width: 0%; transition-duration: 500ms;"></div>
+        </div>
+      </div>
+
+      <div id="fighter-grid" class="grid gap-4 w-full h-[60vh] px-2 md:px-0 transition-all duration-500"></div>
+
+      <div class="mt-6 flex flex-wrap justify-center items-center gap-4">
+        <button id="undo-btn" onclick="undo()"
+          class="px-6 py-2 bg-secondary-200 dark:bg-slate-700 text-secondary-700 dark:text-slate-200 rounded-full text-sm hover:bg-secondary-300 dark:hover:bg-slate-600 shadow transition-all disabled:opacity-50">
+          戻る (BS)
+        </button>
+
+        <button id="pass-btn" onclick="passMatch()"
+          class="px-8 py-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800 font-bold rounded-full shadow-md hover:bg-red-200 dark:hover:bg-red-900/50 active:translate-y-0 transition-all">
+          ピンとこない <span class="text-xs opacity-70 font-normal block md:inline md:ml-1">(Space)</span>
+        </button>
+
+        <button id="finish-early-btn" onclick="finishEarly()"
+          class="px-6 py-2 border border-primary-500 text-primary-600 dark:text-primary-400 rounded-full text-sm hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+          結果を見る (Enter)
+        </button>
+      </div>
+      <div class="mt-2">
+        <button id="quit-btn" onclick="quitSort()"
+          class="text-xs text-red-400 hover:text-red-500 underline">最初に戻る</button>
+      </div>
+    </div>
+    <div id="result-area" class="hidden">
+      <div class="max-w-7xl mx-auto px-4 py-8">
+
+        <div class="text-center mb-8">
+          <h2 class="text-4xl font-black text-emerald-400 mb-2">
+            🏆 測定完了
+          </h2>
+          <p class="text-sm text-slate-400" id="finish-reason">理由: 完走</p>
+        </div>
+
+        <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-3xl p-6 shadow-2xl mb-8">
+          <div id="ranking-list" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </div>
+
+        <div class="relative flex flex-col md:flex-row items-center justify-center pt-4 pb-12 min-h-[80px]">
+
+          <button onclick="resetToStartScreen()"
+            class="px-12 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold rounded-full shadow-lg hover:-translate-y-0.5 transition-all text-lg flex items-center gap-2 z-10">
+            もう一度やる
+          </button>
+
+          <div
+            class="mt-6 md:mt-0 md:absolute md:right-0 md:bottom-2 flex flex-col items-end gap-2 opacity-80 hover:opacity-100 transition-opacity">
+
+            <div
+              class="flex items-center gap-3 bg-slate-900/90 px-4 py-2 rounded-lg border border-slate-700 text-[10px] text-slate-400 shadow-xl">
+              <div class="flex flex-col items-center leading-none"><span class="text-[9px] opacity-70">画像</span><span
+                  class="text-sm font-bold text-white" id="final-img-count">-</span></div>
+              <div class="w-px h-4 bg-slate-700"></div>
+              <div class="flex flex-col items-center leading-none"><span class="text-[9px] opacity-70">選択</span><span
+                  class="text-sm font-bold text-blue-400" id="total-clicks">-</span></div>
+              <div class="w-px h-4 bg-slate-700"></div>
+              <div class="flex flex-col items-center leading-none"><span class="text-[9px] opacity-70">不確実</span><span
+                  class="text-sm font-bold text-emerald-400" id="final-uncertainty">-</span></div>
+              <div class="w-px h-4 bg-slate-700"></div>
+              <div class="flex flex-col items-center leading-none"><span class="text-[9px] opacity-70">効率</span><span
+                  class="text-sm font-bold text-purple-400" id="efficiency-ratio">-</span></div>
+            </div>
+
+            <div class="flex gap-2">
+              <div
+                class="flex items-center gap-1.5 bg-slate-900/90 px-2 py-1 rounded border border-slate-700 shadow-lg">
+                <span class="text-lg">⚡</span>
+                <div class="flex flex-col leading-none"><span class="font-bold text-rose-400 text-[9px]">別格</span></div>
+              </div>
+              <div
+                class="flex items-center gap-1.5 bg-slate-900/90 px-2 py-1 rounded border border-slate-700 shadow-lg">
+                <span class="text-lg">⚔️</span>
+                <div class="flex flex-col leading-none"><span class="font-bold text-purple-400 text-[9px]">安定の強さ</span>
+                </div>
+              </div>
+              <div
+                class="flex items-center gap-1.5 bg-slate-900/90 px-2 py-1 rounded border border-slate-700 shadow-lg">
+                <span class="text-lg">📊</span>
+                <div class="flex flex-col leading-none"><span
+                    class="font-bold text-emerald-400 text-[9px]">統計的に強い</span></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div id="image-modal" onclick="closeModal(event)"
+    class="hidden fixed inset-0 z-50 bg-slate-900/95 flex items-center justify-center backdrop-blur-md p-4 animate-fade-in cursor-pointer">
+    <div
+      class="relative w-auto h-auto max-w-[95vw] max-h-[95vh] flex flex-col items-center justify-center cursor-default">
+      <button
+        class="absolute -top-12 right-0 md:top-0 md:-right-16 z-50 w-12 h-12 rounded-full bg-slate-800/80 text-white hover:bg-slate-700 flex items-center justify-center text-2xl transition-colors shadow-lg border border-slate-600 no-close-target"
+        onclick="forceClose()">×</button>
+      <img id="modal-img"
+        class="no-close-target max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-scale-in" src=""
+        alt="">
+      <div class="mt-4 text-center pointer-events-none no-close-target">
+        <div id="modal-rank" class="text-3xl font-bold text-primary-400 mb-1 drop-shadow-md"></div>
+        <div id="modal-name" class="text-slate-200 text-lg font-medium drop-shadow-md"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === Data Logic (Level 36: Full Analytic Spec) ===
+    let images = [];
+    let historyStack = [];
+    let currentGroup = [];
+    let actionLog = [];
+
+    let initialTotalSigma = 0;
+    let globalPassStreak = 0;
+    let stalemateCounter = 0;
+    let lastWinnerId = null;
+    let totalClicks = 0; // 【新機能】総選択回数
+
+    const RATING_BASE = 1500;
+    const K_FACTOR_INITIAL = 100;
+    const MATCH_SCALE = 400;
+
+    const SIGMA_INIT = 150.0;
+    const SIGMA_MIN = 5.0;
+    const UNSTABLE_SIGMA_THRESHOLD = SIGMA_INIT * 0.6;
+    const UNSTABLE_RATIO_BORDER = 0.35;
+    const IMPACT_THRESHOLD = 30.0;
+
+    const PASS_ELIMINATION_THRESHOLD = 2;
+    const GLOBAL_PASS_LIMIT = 3;
+
+    let currentPhase = 'exploration';
+    let precisionModeLocked = false;
+    let finishReasonText = "完走";
+
+    function getMatchProbability(rating) {
+      const p = 1 / (1 + Math.pow(10, (RATING_BASE - rating) / MATCH_SCALE));
+      return Math.round(p * 100);
+    }
+
+    // === Sound ===
+    let isMuted = false;
+    const sfxSwipe = new Audio('assets/swipe.wav');
+    const sfxButton = new Audio('assets/button.wav');
+    const sfxCelebration = new Audio('assets/celebration.wav');
+    const sfxToggleOff = new Audio('assets/toggle_off.wav');
+    const sfxTap = new Audio('assets/tap_05.wav');
+    const sfxPass = new Audio('assets/toggle_off.wav');
+    const sfxFreeze = new Audio('assets/celebration.wav');
+    const sfxEliminate = new Audio('assets/toggle_off.wav');
+    sfxSwipe.volume = 0.2; sfxButton.volume = 0.2; sfxCelebration.volume = 0.1; sfxToggleOff.volume = 0.2; sfxTap.volume = 0.2; sfxPass.volume = 0.15; sfxFreeze.volume = 0.2; sfxEliminate.volume = 0.1;
+
+    function playSound(audio) { if (!isMuted) { audio.currentTime = 0; audio.play().catch(() => { }); } }
+    function toggleMute() {
+      isMuted = !isMuted;
+      document.getElementById('sound-on-icon').classList.toggle('hidden', isMuted);
+      document.getElementById('sound-off-icon').classList.toggle('hidden', !isMuted);
+      if (!isMuted) playSound(sfxButton);
+    }
+
+    // === Theme ===
+    if (localStorage.theme === 'light') document.documentElement.classList.remove('dark');
+    else document.documentElement.classList.add('dark');
+    function toggleTheme() {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) { html.classList.remove('dark'); localStorage.setItem('theme', 'light'); playSound(sfxToggleOff); }
+      else { html.classList.add('dark'); localStorage.setItem('theme', 'dark'); playSound(sfxButton); }
+    }
+
+    // === File Handling ===
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => { handleFiles(e.target.files); fileInput.value = ''; });
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('border-primary-500', 'bg-primary-50', 'dark:bg-primary-900/30'); });
+    dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('border-primary-500', 'bg-primary-50', 'dark:bg-primary-900/30'); });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('border-primary-500', 'bg-primary-50', 'dark:bg-primary-900/30'); playSound(sfxSwipe); handleFiles(e.dataTransfer.files); });
+
+    function handleFiles(files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) continue;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          images.push({
+            id: Math.random(), name: file.name, src: e.target.result,
+            rating: RATING_BASE, sigma: SIGMA_INIT, viewCount: 0, passCount: 0, wins: 0, status: 'active', eliteType: null
+          });
+          updateFileCount();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function updateFileCount() {
+      document.getElementById('file-list').textContent = `読み込み済み: ${images.length}枚`;
+      document.getElementById('empty-msg').classList.toggle('hidden', images.length > 0);
+      renderThumbnails();
+      document.getElementById('start-btn').disabled = images.length < 2;
+      document.getElementById('clear-all-btn').disabled = images.length < 2;
+    }
+
+    function renderThumbnails() {
+      const list = document.getElementById('thumb-list');
+      list.innerHTML = '';
+      images.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'relative bg-white dark:bg-slate-700 p-2 rounded-xl shadow-sm w-20 text-center border border-slate-200 dark:border-slate-600';
+        div.innerHTML = `<div class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs cursor-pointer shadow-sm z-10" onclick="deleteImage(${item.id}, event)">×</div><img class="w-16 h-16 object-cover rounded-lg mx-auto mb-1" src="${item.src}">`;
+        list.appendChild(div);
+      });
+    }
+    function deleteImage(id, e) { e.stopPropagation(); images = images.filter(img => img.id !== id); playSound(sfxToggleOff); updateFileCount(); }
+    function clearAllImages() { if (confirm('全削除しますか？')) { images = []; updateFileCount(); } }
+
+    // === Core Logic ===
+    function startBattle() {
+      if (images.length < 2) return;
+      playSound(sfxButton);
+      images.forEach(i => { i.rating = RATING_BASE; i.sigma = SIGMA_INIT; i.viewCount = 0; i.passCount = 0; i.wins = 0; i.status = 'active'; i.eliteType = null; });
+      initialTotalSigma = images.length * SIGMA_INIT;
+      historyStack = []; actionLog = []; stalemateCounter = 0; lastWinnerId = null; totalClicks = 0;
+      document.getElementById('upload-area').classList.add('hidden');
+      document.getElementById('battle-area').classList.remove('hidden');
+      updateSystemState();
+      nextMatch();
+    }
+
+    function updateSystemState() {
+      let activeImages = images.filter(i => i.status === 'active');
+      activeImages.sort((a, b) => b.rating - a.rating);
+
+      if (!precisionModeLocked) {
+        const unstableItems = activeImages.filter(i => i.sigma > UNSTABLE_SIGMA_THRESHOLD);
+        const unstableRatio = activeImages.length > 0 ? (unstableItems.length / activeImages.length) : 0;
+        if (unstableRatio <= UNSTABLE_RATIO_BORDER) {
+          precisionModeLocked = true;
+        }
+      }
+      currentPhase = precisionModeLocked ? 'precision' : 'exploration';
+
+      // 2. Elite Freeze
+      if (activeImages.length >= 2) {
+        const top = activeImages[0], sec = activeImages[1];
+        const isGod = top.rating > 1770 && top.viewCount >= 4;
+        const isStrong = top.rating > 1600 && top.viewCount >= 6 && (top.rating - 1.0 * top.sigma) > (sec.rating + 1.0 * sec.sigma);
+        const isStat = top.rating > 1520 && top.viewCount >= 7 && (top.rating - 1.62 * top.sigma) > (sec.rating + 1.62 * sec.sigma);
+
+        let eType = isGod ? "GOD" : (isStrong ? "STRONG" : (isStat ? "STAT" : null));
+        if (eType) {
+          playSound(sfxFreeze); // ★ここに追加！これで殿堂入りの音が鳴ります
+          top.status = 'frozen'; top.eliteType = eType;
+          stalemateCounter = 0; updateSystemState(); return;
+        }
+      }
+
+      // 3. Pruning (Safety Net)
+      // 【修正】即死を避けるため、レート1200(かなり低い)になるまでは消さない
+      activeImages.forEach(img => {
+        if (img.viewCount >= 5 && img.rating <= 1200) {
+          img.status = 'eliminated';
+          stalemateCounter = 0;
+        }
+      });
+
+      // 4. Stagnation Breaker (沼脱出)
+      activeImages.forEach(img => {
+        if (img.viewCount >= 10) {
+          if (img.rating >= 1500) { img.status = 'frozen'; img.eliteType = 'STAT'; }
+          else { img.status = 'eliminated'; }
+          stalemateCounter = 0;
+        }
+      });
+
+      // 5. Similarity Finish
+      if (activeImages.length > 0 && activeImages.length <= 4) {
+        const top = activeImages[0], bot = activeImages[activeImages.length - 1];
+        const avgViews = activeImages.reduce((s, i) => s + i.viewCount, 0) / activeImages.length;
+        if (avgViews >= 6 && (top.rating - bot.rating) < 50) {
+          finishReasonText = "好みの近似による自動終了";
+          finishSort(); return;
+        }
+      }
+
+      // Convergence
+      if (activeImages.length > 0) {
+        const maxSigma = Math.max(...activeImages.map(i => i.sigma));
+        if (currentPhase === 'precision' && maxSigma < IMPACT_THRESHOLD && activeImages.length > 2) {
+          finishReasonText = "収束完了";
+          finishSort(); return;
+        }
+      }
+
+      updateUI();
+    }
+
+    function updateUI() {
+      const activeCount = images.filter(i => i.status === 'active').length;
+      const frozenCount = images.filter(i => i.status === 'frozen').length;
+
+      const warning = document.getElementById('streak-warning');
+      if (globalPassStreak === GLOBAL_PASS_LIMIT - 1) warning.classList.remove('hidden');
+      else warning.classList.add('hidden');
+
+      let currentUncertaintyMass = 0;
+      images.forEach(i => { if (i.status === 'active') currentUncertaintyMass += i.sigma; });
+      const progress = Math.min(100, Math.floor((1 - (currentUncertaintyMass / initialTotalSigma)) * 100));
+      const width = activeCount === 0 ? 100 : progress;
+
+      document.getElementById('progress-bar').style.width = `${width}%`;
+      document.getElementById('progress-text').textContent = `${width}%`;
+
+      const pInd = document.getElementById('phase-indicator');
+      if (currentPhase === 'exploration') {
+        pInd.textContent = "探索 (6択)";
+        pInd.className = "text-xs font-mono px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 transition-colors duration-300";
+      } else {
+        pInd.textContent = "精密 (4択)";
+        pInd.className = "text-xs font-mono px-2 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 transition-colors duration-300 border border-purple-200 dark:border-purple-800";
+      }
+
+      let statusText = `残り: ${activeCount}`;
+      if (frozenCount > 0) statusText += ` (殿堂: ${frozenCount})`;
+      document.getElementById('stats-indicator').textContent = statusText;
+    }
+
+    function nextMatch() {
+      const activeImages = images.filter(i => i.status === 'active');
+
+      if (activeImages.length < 2) { finishSort(); return; }
+
+      if (actionLog.length > 10) {
+        const recent = actionLog.slice(-10);
+        const passCount = recent.filter(r => r === 'pass').length;
+        if (passCount >= 4) {
+          finishReasonText = "パス過多 (枯渇)";
+          finishSort();
+          return;
+        }
+      }
+
+      let size = precisionModeLocked ? 4 : 6;
+      if (activeImages.length < size) size = activeImages.length;
+
+      let candidatePool = [...activeImages];
+
+      if (lastWinnerId !== null && candidatePool.length > size) {
+        candidatePool = candidatePool.filter(img => img.id !== lastWinnerId);
+      }
+
+      candidatePool.sort((a, b) => {
+        const scoreA = (a.rating * 1.5) + a.sigma;
+        const scoreB = (b.rating * 1.5) + b.sigma;
+        return scoreB - scoreA;
+      });
+
+      const pivot = candidatePool[0];
+      let selection = [pivot];
+      let othersPool = candidatePool.slice(1);
+
+      if (size === 6) {
+        othersPool = shuffleArray(othersPool);
+      } else {
+        othersPool.sort((a, b) => {
+          const distA = Math.abs(a.rating - pivot.rating);
+          const distB = Math.abs(b.rating - pivot.rating);
+          return distA - distB;
+        });
+      }
+
+      for (let i = 0; i < size - 1 && i < othersPool.length; i++) {
+        selection.push(othersPool[i]);
+      }
+
+      currentGroup = shuffleArray(selection);
+      renderGrid(currentGroup.length);
+      document.getElementById('undo-btn').disabled = (historyStack.length === 0);
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function renderGrid(count) {
+      const grid = document.getElementById('fighter-grid');
+      grid.innerHTML = '';
+
+      if (count > 4) {
+        grid.className = "grid gap-3 w-full h-[60vh] px-2 md:px-0 grid-cols-2 md:grid-cols-3 transition-all duration-500";
+      } else {
+        grid.className = "grid gap-4 w-full h-[60vh] px-2 md:px-0 grid-cols-2 md:grid-cols-4 transition-all duration-500";
+      }
+
+      currentGroup.forEach((img, index) => {
+        const div = document.createElement('div');
+        div.className = "relative group cursor-pointer bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 border-transparent hover:border-primary-500 dark:hover:border-primary-400 overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl animate-pop h-full flex flex-col";
+        div.style.animationDelay = `${index * 0.05}s`;
+        div.onclick = () => choose(img.id);
+        div.onmouseenter = () => playSound(sfxTap);
+
+        div.innerHTML = `
+        <div class="absolute top-2 left-2 bg-black/50 text-white px-2 rounded text-xs font-bold z-10 backdrop-blur-sm shadow-sm">${index + 1}</div>
+        <div class="flex-1 w-full relative overflow-hidden">
+             <img src="${img.src}" class="absolute inset-0 w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]">
+        </div>
+        <div class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm p-2 text-center border-t border-slate-100 dark:border-slate-700 shrink-0">
+          <div class="font-bold text-secondary-800 dark:text-slate-200 text-xs md:text-sm group-hover:text-primary-700 dark:group-hover:text-primary-400 truncate">${img.name}</div>
+        </div>
+      `;
+        grid.appendChild(div);
+      });
+    }
+
+    function choose(winnerId) {
+      playSound(sfxButton);
+      pushHistory();
+      globalPassStreak = 0;
+      actionLog.push({ type: 'win', id: winnerId });
+      lastWinnerId = winnerId;
+      totalClicks++;
+
+      if (currentPhase === 'precision') {
+        stalemateCounter++;
+        if (stalemateCounter > 5) {
+          let weakest = currentGroup[0];
+          currentGroup.forEach(img => {
+            const actual = images.find(i => i.id === img.id);
+            if (actual.rating < images.find(i => i.id === weakest.id).rating) weakest = actual;
+          });
+          if (weakest.id !== winnerId) {
+            const target = images.find(i => i.id === weakest.id);
+
+            // サドンデス救済
+            if (target.rating >= 1520) {
+              target.status = 'frozen';
+              target.eliteType = "STAT";
+            } else {
+              target.status = 'eliminated';
+            }
+
+            stalemateCounter = 0;
+            playSound(sfxEliminate);
+          }
+        }
+      }
+
+      const winner = images.find(i => i.id === winnerId);
+      const losers = currentGroup.filter(img => img.id !== winnerId).map(img => images.find(i => i.id === img.id));
+
+      let annealingFactor = 1.0 / (1.0 + (winner.viewCount * 0.15));
+
+      losers.forEach(loser => {
+        const Ea = 1 / (1 + Math.pow(10, (loser.rating - winner.rating) / MATCH_SCALE));
+        const Eb = 1 / (1 + Math.pow(10, (winner.rating - loser.rating) / MATCH_SCALE));
+
+        const winnerK = K_FACTOR_INITIAL * annealingFactor;
+        const loserK = K_FACTOR_INITIAL * annealingFactor;
+
+        let loserModifier = 0.6;
+        if (loser.wins === 0) loserModifier = 0.2;
+
+        // 【修正】6択勝ちの価値を大きく向上させる (割り算を緩くする)
+        winner.rating += (winnerK * (1 - Ea)) / Math.sqrt(losers.length);
+        loser.rating += loserK * (0 - Eb) * loserModifier;
+
+        let sigmaDrop = 0.92;
+        if (loser.viewCount > 8) sigmaDrop = 0.7;
+        loser.sigma *= sigmaDrop;
+
+        loser.viewCount++;
+      });
+
+      let winnerSigmaDrop = 0.85;
+      if (winner.viewCount > 8) winnerSigmaDrop = 0.7;
+      winner.sigma *= winnerSigmaDrop;
+
+      winner.viewCount++;
+      winner.wins++;
+
+      clampValues();
+      updateSystemState();
+      nextMatch();
+    }
+
+    function passMatch() {
+      playSound(sfxPass);
+      pushHistory();
+      globalPassStreak++;
+      lastWinnerId = null;
+      totalClicks++;
+      actionLog.push({ type: 'pass', id: null });
+
+      if (globalPassStreak >= GLOBAL_PASS_LIMIT) {
+        finishReasonText = "手動終了(連続パス)";
+        finishSort();
+        return;
+      }
+
+      currentGroup.forEach(img => {
+        const t = images.find(i => i.id === img.id);
+        t.passCount++;
+        t.viewCount++;
+        t.rating -= 30;
+        t.sigma *= 0.75;
+        if (t.passCount >= PASS_ELIMINATION_THRESHOLD) t.status = 'eliminated';
+      });
+
+      clampValues();
+      updateSystemState();
+
+      const active = images.filter(i => i.status === 'active');
+      if (active.length < 2) {
+        finishReasonText = "枯渇";
+        finishSort();
+      } else {
+        const grid = document.getElementById('fighter-grid');
+        grid.classList.add('animate-shake');
+        setTimeout(() => grid.classList.remove('animate-shake'), 400);
+        nextMatch();
+      }
+    }
+
+    function pushHistory() {
+      historyStack.push({
+        imagesCopy: JSON.parse(JSON.stringify(images)),
+        actionLogCopy: [...actionLog],
+        phase: currentPhase,
+        locked: precisionModeLocked,
+        streak: globalPassStreak,
+        stalemate: stalemateCounter,
+        lastWinner: lastWinnerId,
+        clicks: totalClicks
+      });
+    }
+
+    function undo() {
+      if (historyStack.length === 0) return;
+      playSound(sfxToggleOff);
+      const state = historyStack.pop();
+      images = state.images;
+      actionLog = state.actionLogCopy;
+      currentPhase = state.phase;
+      precisionModeLocked = state.locked;
+      globalPassStreak = state.streak;
+      stalemateCounter = state.stalemate;
+      lastWinnerId = state.lastWinner;
+      totalClicks = state.clicks;
+      updateUI();
+      nextMatch();
+    }
+
+    function clampValues() {
+      images.forEach(img => {
+        img.sigma = Math.max(img.sigma, SIGMA_MIN);
+      });
+    }
+
+    function finishEarly() {
+      if (images.every(i => i.viewCount === 0)) return;
+      if (confirm("現在の学習データで分析結果を表示しますか？")) {
+        finishReasonText = "手動終了";
+        finishSort();
+      }
+    }
+    function quitSort() { if (confirm("最初に戻りますか？")) resetToStartScreen(); }
+
+    async function finishSort() {
+      playSound(sfxCelebration);
+      const shutter = document.getElementById('shutter-layer');
+      shutter.classList.remove('-translate-x-full'); shutter.classList.add('translate-x-0');
+      await new Promise(r => setTimeout(r, 600));
+
+      document.getElementById('battle-area').classList.add('hidden');
+      document.getElementById('result-area').classList.remove('hidden');
+
+      const avgFinalSigma = images.reduce((sum, i) => sum + i.sigma, 0) / images.length;
+
+      // 新しいHTMLのIDに合わせてデータをセット
+      document.getElementById('final-img-count').textContent = images.length;
+      document.getElementById('total-clicks').textContent = totalClicks;
+      document.getElementById('final-uncertainty').textContent = avgFinalSigma.toFixed(2);
+      document.getElementById('efficiency-ratio').textContent = (images.length / Math.max(totalClicks, 1)).toFixed(2);
+      document.getElementById('finish-reason').textContent = `理由: ${finishReasonText}`;
+
+      renderRanking();
+      shutter.classList.remove('translate-x-0'); shutter.classList.add('translate-x-full');
+      setTimeout(() => { shutter.style.transition = 'none'; shutter.classList.remove('translate-x-full'); shutter.classList.add('-translate-x-full'); setTimeout(() => shutter.style.transition = '', 50); }, 600);
+    }
+
+
+
+    function resetToStartScreen() {
+      // 1. 画面表示を「アップロード画面」に戻す
+      document.getElementById('result-area').classList.add('hidden');
+      document.getElementById('battle-area').classList.add('hidden');
+      document.getElementById('upload-area').classList.remove('hidden');
+
+      // 2. 変数を初期化（画像配列 images は空にしない！）
+      historyStack = [];
+      actionLog = [];
+      currentGroup = [];
+      totalClicks = 0;
+      globalPassStreak = 0;
+      stalemateCounter = 0;
+      lastWinnerId = null;
+
+      // 3. 画像ごとの数値をリセット
+      images.forEach(img => {
+        img.rating = RATING_BASE;
+        img.sigma = SIGMA_INIT;
+        img.viewCount = 0;
+        img.wins = 0;
+        img.status = 'active';
+        img.eliteType = null;
+      });
+
+      // 4. ボタンの状態を更新
+      updateFileCount();
+    }
+    function finishEarly() { if (confirm("現在の学習データで分析結果を表示しますか？")) finishSort(); }
+    function quitSort() { if (confirm("最初に戻りますか？")) resetToStartScreen(); }
+    function openModal(src, title, score) { document.getElementById('modal-img').src = src; document.getElementById('modal-rank').textContent = score + "% Match"; document.getElementById('modal-name').textContent = title; document.getElementById('image-modal').classList.remove('hidden'); document.getElementById('image-modal').classList.add('flex'); }
+    function forceClose() { document.getElementById('image-modal').classList.add('hidden'); document.getElementById('image-modal').classList.remove('flex'); }
+    function closeModal(e) { if (!e.target.closest('.no-close-target')) forceClose(); }
+
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('battle-area').classList.contains('hidden')) {
+        for (let i = 1; i <= 6; i++) { if (e.key === String(i) && currentGroup[i - 1]) choose(currentGroup[i - 1].id); }
+        if (e.key === 'Backspace') undo();
+        if (e.key === ' ' || e.key === '0' || e.key === 'p') { e.preventDefault(); passMatch(); }
+        if (e.key === 'Enter') finishEarly();
+      }
+    });
+    function renderRanking() {
+      const k = 1.0;
+      const processedImages = images.map(img => {
+        return {
+          ...img,
+          r_eff: img.rating - (k * img.sigma),
+          raw_rating: Math.round(img.rating),
+          raw_sigma: Math.round(img.sigma),
+          match_prob: getMatchProbability(img.rating)
+        };
+      }).sort((a, b) => b.r_eff - a.r_eff);
+
+      const container = document.getElementById('ranking-list');
+      container.innerHTML = '';
+
+      const tiers = [
+        { id: "S", name: "S", desc: "決定的に好き", minReff: 1650, cols: 3, color: "text-purple-300", bg: "bg-slate-800/80 border-purple-500/30", badge: "bg-purple-500/20 text-purple-300 border-purple-500/30", gradientClass: "gradient-bar-purple" },
+        { id: "A", name: "A", desc: "安定的に好き", minReff: 1550, cols: 4, color: "text-blue-300", bg: "bg-slate-800/80 border-blue-500/30", badge: "bg-blue-500/20 text-blue-300 border-blue-500/30", gradientClass: "gradient-bar-blue" },
+        { id: "B", name: "B", desc: "統計的に好き", minReff: 1450, cols: 5, color: "text-emerald-300", bg: "bg-slate-800/80 border-emerald-500/30", badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", gradientClass: "gradient-bar-emerald" },
+        { id: "C", name: "C", desc: "判断保留", minReff: 1350, cols: 6, isCompact: true, color: "text-slate-400", bg: "bg-slate-900/60 border-slate-700/40", badge: "bg-slate-500/20 text-slate-400 border-slate-500/30", gradientClass: "gradient-bar-slate" },
+        { id: "D", name: "D", desc: "選考外", minReff: -9999, cols: 6, isCompact: true, color: "text-slate-500", bg: "bg-slate-900/40 border-slate-800/30", badge: "bg-slate-600/20 text-slate-400 border-slate-600/30", gradientClass: "gradient-bar-gray" }
+      ];
+
+      let remainingImages = [...processedImages];
+
+      tiers.forEach(tier => {
+        const tierImages = remainingImages.filter(img => img.r_eff >= tier.minReff);
+        remainingImages = remainingImages.filter(img => img.r_eff < tier.minReff);
+        if (tierImages.length === 0) return;
+
+        const section = document.createElement('div');
+        section.className = "mb-6 break-inside-avoid";
+        section.innerHTML = `
+            <div class="flex items-center justify-between mb-2 px-1">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg ${tier.badge} border flex items-center justify-center font-black text-xl shadow-lg">
+                        ${tier.name}
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold ${tier.color} leading-none mb-0.5">${tier.desc}</div>
+                        <div class="text-[10px] text-slate-500 font-mono">${tierImages.length} ITEMS</div>
+                    </div>
+                </div>
+            </div>
+            <div class="grid gap-2 ${tier.isCompact ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-1'}" id="tier-grid-${tier.id}"></div>
+        `;
+        container.appendChild(section);
+
+        const grid = section.querySelector(`#tier-grid-${tier.id}`);
+
+        tierImages.forEach((item) => {
+          const globalIndex = processedImages.indexOf(item);
+
+          // ★ 枠色・発光の判定ロジック ★
+          // ★ 枠色・発光の判定ロジック（アイコン調整版） ★
+          // 1. 別格(GOD)かどうかの判定
+          const isGod = item.eliteType === "GOD";
+
+          // 2. バッジ（アイコン）の設定
+          let badge = "";
+          let badgeColor = "";
+          if (isGod) {
+            badge = "⚡ 別格";
+            // 周りを黄色(yellow-500)に変更
+            badgeColor = "bg-yellow-500 text-black shadow-lg shadow-yellow-500/50 font-black";
+          } else if (item.eliteType === "STRONG") {
+            badge = "⚔️ 安定";
+            badgeColor = "bg-purple-600 text-white shadow-md";
+          } else if (item.eliteType === "STAT") {
+            badge = "📊 統計";
+            badgeColor = "bg-emerald-600 text-white shadow-md";
+          }
+
+          // 3. 色の動的決定（GODなら黄色、それ以外はTierの色）
+          const percentTextColor = isGod ? "text-yellow-400" : tier.color;
+          const barClass = isGod ? "bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.6)]" : tier.gradientClass;
+
+          // 4. 枠線の色はTier（S,A,B..）に統一
+          const borderClass = `${tier.bg} hover:border-slate-400/50 shadow-lg`;
+
+          const div = document.createElement('div');
+          div.className = `group relative rounded-xl border ${borderClass} overflow-hidden transition-all hover:scale-[1.01]`;
+          div.onclick = () => openModal(item.src, item.name, item.match_prob);
+          div.className = `group relative rounded-xl border ${borderClass} overflow-hidden transition-all hover:scale-[1.01]`;
+          div.onclick = () => openModal(item.src, item.name, item.match_prob);
+
+          if (tier.isCompact) {
+            // ★ 判断保留・選考外（極小表示） ★
+            div.className += " bg-slate-900/40 p-1.5 flex flex-col items-center justify-center text-center gap-1.5 hover:bg-slate-800 cursor-zoom-in";
+            div.innerHTML = `
+                    <div class="relative w-10 h-10">
+                        <img src="${item.src}" class="w-full h-full object-cover rounded bg-black border border-slate-700">
+                        <div class="absolute -top-1 -left-1 text-[9px] font-mono font-bold text-slate-300 bg-slate-900 px-1 rounded border border-slate-700">#${globalIndex + 1}</div>
+                    </div>
+                    <div class="w-full text-[10px] text-slate-400 truncate px-1">${item.name}</div>
+                `;
+          } else {
+            // ★ 上位Tier（詳細表示・適合度デカ文字） ★
+            div.className += " bg-slate-900/40";
+            div.innerHTML = `
+                    <div class="flex p-3 gap-4">
+                        <div class="relative w-24 h-24 flex-shrink-0">
+                            <img src="${item.src}" class="w-full h-full object-cover rounded-lg bg-black shadow-lg border border-slate-700">
+                            <div class="absolute -top-2 -left-2 bg-slate-900 text-white text-[10px] font-black px-2 py-0.5 rounded border border-slate-600 shadow-md">
+                                #${globalIndex + 1}
+                            </div>
+                        </div>
+                        
+                        <div class="flex-1 min-w-0 flex flex-col justify-center">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="text-sm font-bold text-slate-200 truncate pr-2">${item.name}</div>
+                                ${badge ? `<div class="${badgeColor} text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${badge}</div>` : ''}
+                            </div>
+                            
+                            <div class="flex justify-between items-end mb-2">
+                                <div class="text-[10px] text-slate-500 font-mono">レート: <span class="text-slate-300">${item.raw_rating}</span></div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="text-[10px] font-bold text-slate-500">適合率</span>
+                                    <span class="text-3xl font-black ${tier.color} leading-none tracking-tighter">${item.match_prob}%</span>
+                                </div>
+                            </div>
+
+                            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden shadow-inner border border-slate-800/50">
+                                <div class="${tier.gradientClass} h-full" style="width: ${item.match_prob}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+          }
+          grid.appendChild(div);
+        });
+      });
+    }
+  </script>
+</body>
+
+</html>
